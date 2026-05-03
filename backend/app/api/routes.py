@@ -4,6 +4,7 @@ from ..schemas import (
     AgentCreate,
     AgentRead,
     AgentBuilderRequest,
+    ChatMessageRead,
     ChatRequest,
     ChatResponse,
     ChatSessionRead,
@@ -32,15 +33,20 @@ def list_agents() -> List[AgentRead]:
 
 @api_router.post("/agents", response_model=AgentRead)
 def create_agent(agent_in: AgentCreate) -> AgentRead:
-    agent = agent_service.create_agent(agent_in)
+    try:
+        agent = agent_service.create_agent(agent_in)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     if not agent:
         raise HTTPException(status_code=400, detail="Unable to create agent")
     return agent
 
 @api_router.post("/agents/builder", response_model=AgentRead)
 def build_agent(agent_request: AgentBuilderRequest) -> AgentRead:
-    agent = builder_service.build_agent(agent_request)
-    return agent
+    try:
+        return builder_service.build_agent(agent_request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 @api_router.post("/agents/{agent_id}/chat", response_model=ChatResponse)
 def agent_chat(agent_id: int, request: ChatRequest) -> ChatResponse:

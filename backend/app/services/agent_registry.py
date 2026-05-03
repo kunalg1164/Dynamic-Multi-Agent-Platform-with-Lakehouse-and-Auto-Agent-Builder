@@ -1,4 +1,5 @@
 from typing import List
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models import Agent
@@ -22,6 +23,13 @@ class AgentRegistryService:
             status="active",
         )
         self.db.add(agent)
-        self.db.commit()
-        self.db.refresh(agent)
+        try:
+            self.db.commit()
+            self.db.refresh(agent)
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise ValueError("An agent with this name already exists.") from exc
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
         return AgentRead.from_orm(agent)

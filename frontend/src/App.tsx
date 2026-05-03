@@ -55,10 +55,10 @@ function App() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [name, setName] = useState('Travel Planner')
-  const [description, setDescription] = useState('Help with trip planning, budgets, and destinations.')
-  const [domain, setDomain] = useState('travel')
-  const [tags, setTags] = useState('travel, budget')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [domain, setDomain] = useState('')
+  const [tags, setTags] = useState('')
   const [createdAgent, setCreatedAgent] = useState<Agent | null>(null)
   const [error, setError] = useState('')
   const [activeScreen, setActiveScreen] = useState(0)
@@ -71,6 +71,12 @@ function App() {
 
     fetchAgents()
   }, [])
+
+  useEffect(() => {
+    if (selectedAgentId !== null) {
+      fetchChatSessions(selectedAgentId)
+    }
+  }, [selectedAgentId])
 
   const fetchAgents = async () => {
     try {
@@ -111,15 +117,17 @@ function App() {
         }),
       })
       if (!response.ok) {
-        throw new Error('API returned an error')
+        const body = await response.json().catch(() => null)
+        const message = body?.detail || body?.message || 'API returned an error'
+        throw new Error(message)
       }
       const data = await response.json()
       setCreatedAgent(data)
       await fetchAgents()
       setSelectedAgentId(data.id)
       setActiveScreen(1)
-    } catch {
-      setError('Agent creation failed. Check backend or API settings.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Agent creation failed. Check backend or API settings.')
     }
   }
 
@@ -199,12 +207,17 @@ function App() {
     }
   }
 
+  const startNewChat = () => {
+    setChatHistory([])
+    setCurrentSessionId(null)
+    setChatMessage('')
+  }
+
   const handleAgentSelect = (agentId: number) => {
     setSelectedAgentId(agentId)
     setChatHistory([])
     setCurrentSessionId(null)
     setChatMessage('')
-    fetchChatSessions(agentId)
   }
 
   const selectSampleBot = (bot: SampleBot) => {

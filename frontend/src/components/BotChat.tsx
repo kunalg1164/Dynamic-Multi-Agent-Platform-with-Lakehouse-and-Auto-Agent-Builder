@@ -2,9 +2,16 @@ import { FormEvent, ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
   Box,
   Button,
-  Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -12,17 +19,7 @@ import {
   Stack,
   TextField,
   Typography,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  IconButton,
-  Chip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
 import { Add, History, Chat } from '@mui/icons-material'
 import type { Agent, ChatMessage, ChatSession } from '../types'
@@ -56,26 +53,10 @@ export default function BotChat({
   onLoadSession,
   onStartNewChat,
 }: BotChatProps) {
-  console.log('BotChat component rendered with:', { agents: agents?.length, selectedAgentId, chatHistory: chatHistory?.length })
-  
-  // Temporary debug return
-  return (
-    <div style={{ padding: '20px', border: '2px solid blue', margin: '20px', backgroundColor: 'lightblue' }}>
-      <h2>BotChat Debug</h2>
-      <p>Component is rendering!</p>
-      <p>Agents count: {agents?.length || 0}</p>
-      <p>Selected Agent ID: {selectedAgentId || 'none'}</p>
-      <p>Chat History: {chatHistory?.length || 0} messages</p>
-      <p>Is Loading: {isLoading ? 'Yes' : 'No'}</p>
-      <p>Current Session: {currentSessionId || 'none'}</p>
-    </div>
-  )
-
-  const [showSessionDialog, setShowSessionDialog] = useState(false)
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
@@ -85,22 +66,24 @@ export default function BotChat({
     if (!dateString) return ''
     return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
+
   return (
-    <Paper elevation={4} sx={{ borderRadius: 4, p: 4, maxWidth: 800, mx: 'auto' }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Paper elevation={4} sx={{ borderRadius: 4, p: 4, maxWidth: 900, mx: 'auto' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Typography variant="h4" gutterBottom>
             Bot Chat
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Interactive conversation with your AI agents
+            Chat with your selected agent and load previous sessions.
           </Typography>
         </Box>
+
         <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"
             startIcon={<History />}
-            onClick={() => setShowSessionDialog(true)}
+            onClick={() => setSessionDialogOpen(true)}
             disabled={!selectedAgentId}
           >
             Sessions
@@ -135,25 +118,16 @@ export default function BotChat({
           </Select>
         </FormControl>
 
-        {currentSessionId && (
-          <Chip
-            label={`Session #${currentSessionId}`}
-            color="primary"
-            variant="outlined"
-            size="small"
-          />
-        )}
-
         <Paper
           variant="outlined"
           sx={{
             borderRadius: 3,
             p: 3,
-            minHeight: 400,
-            maxHeight: 500,
-            backgroundColor: 'background.paper',
+            minHeight: 440,
+            maxHeight: 520,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            backgroundColor: 'background.paper',
           }}
         >
           <Box
@@ -162,28 +136,22 @@ export default function BotChat({
               flex: 1,
               overflowY: 'auto',
               mb: 2,
+              pr: 1,
               '&::-webkit-scrollbar': {
                 width: '6px',
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: 'grey.100',
-                borderRadius: '3px',
               },
               '&::-webkit-scrollbar-thumb': {
                 backgroundColor: 'grey.400',
                 borderRadius: '3px',
-                '&:hover': {
-                  backgroundColor: 'grey.500',
-                },
               },
             }}
           >
             <Stack spacing={2}>
               {chatHistory.length === 0 ? (
-                <Box textAlign="center" py={4}>
-                  <Chat sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                <Box textAlign="center" py={6}>
+                  <Chat sx={{ fontSize: 52, color: 'text.secondary', mb: 2 }} />
                   <Typography color="text.secondary">
-                    Start a conversation by selecting an agent and sending your first message.
+                    Your conversation will appear here once you send a message.
                   </Typography>
                 </Box>
               ) : (
@@ -193,7 +161,6 @@ export default function BotChat({
                     sx={{
                       display: 'flex',
                       justifyContent: message.role === 'assistant' ? 'flex-start' : 'flex-end',
-                      mb: 1,
                     }}
                   >
                     <Box
@@ -202,36 +169,26 @@ export default function BotChat({
                         borderRadius: 3,
                         bgcolor: message.role === 'assistant' ? 'grey.100' : 'primary.main',
                         color: message.role === 'assistant' ? 'text.primary' : 'white',
-                        maxWidth: '75%',
-                        wordWrap: 'break-word',
+                        maxWidth: '78%',
+                        wordBreak: 'break-word',
                         boxShadow: 1,
                       }}
                     >
-                      <Typography variant="caption" display="block" sx={{ opacity: 0.7, mb: 0.5 }}>
+                      <Typography variant="caption" sx={{ opacity: 0.7, mb: 0.5, display: 'block' }}>
                         {message.role === 'assistant' ? 'Assistant' : 'You'} • {formatTime(message.created_at)}
                       </Typography>
-                      <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                        {message.content}
-                      </Typography>
+                      <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
                     </Box>
                   </Box>
                 ))
               )}
               {isLoading && (
                 <Box display="flex" justifyContent="flex-start" mb={1}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 3,
-                      bgcolor: 'grey.100',
-                      maxWidth: '75%',
-                      boxShadow: 1,
-                    }}
-                  >
+                  <Box sx={{ p: 2, borderRadius: 3, bgcolor: 'grey.100', maxWidth: '75%', boxShadow: 1 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <CircularProgress size={16} />
                       <Typography variant="body2" color="text.secondary">
-                        Thinking...
+                        Assistant is typing...
                       </Typography>
                     </Stack>
                   </Box>
@@ -241,51 +198,41 @@ export default function BotChat({
           </Box>
         </Paper>
 
-        <Divider />
-
         <Box component="form" onSubmit={onSendMessage} sx={{ display: 'grid', gap: 2 }}>
           <TextField
             label="Type your message..."
             value={chatMessage}
             onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChatMessageChange(event.target.value)}
             multiline
-            minRows={2}
-            maxRows={4}
+            minRows={3}
+            maxRows={5}
             fullWidth
             disabled={!selectedAgentId || isLoading}
-            placeholder={selectedAgentId ? "Ask me anything..." : "Select an agent first"}
+            placeholder={selectedAgentId ? 'Ask your agent...' : 'Select an agent to start'}
           />
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            sx={{ alignSelf: 'flex-end', borderRadius: 3, px: 4 }}
-            disabled={!selectedAgentId || !chatMessage.trim() || isLoading}
-            startIcon={isLoading ? <CircularProgress size={16} /> : null}
-          >
+          <Button type="submit" variant="contained" size="large" sx={{ alignSelf: 'flex-end', borderRadius: 3 }} disabled={!selectedAgentId || !chatMessage.trim() || isLoading}>
             {isLoading ? 'Sending...' : 'Send Message'}
           </Button>
         </Box>
       </Stack>
 
-      {/* Session History Dialog */}
-      <Dialog
-        open={showSessionDialog}
-        onClose={() => setShowSessionDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={sessionDialogOpen} onClose={() => setSessionDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Chat Sessions</DialogTitle>
         <DialogContent>
           {chatSessions.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 2 }}>
-              No chat sessions found for this agent.
+              No saved sessions yet for this agent.
             </Typography>
           ) : (
             <List>
               {chatSessions.map((session) => (
                 <ListItem key={session.id} disablePadding>
-                  <ListItemButton onClick={() => { onLoadSession(session.id); setShowSessionDialog(false) }}>
+                  <ListItemButton
+                    onClick={() => {
+                      onLoadSession(session.id)
+                      setSessionDialogOpen(false)
+                    }}
+                  >
                     <ListItemText
                       primary={session.title || `Session #${session.id}`}
                       secondary={`${session.message_count} messages • ${new Date(session.created_at).toLocaleDateString()}`}
@@ -297,7 +244,7 @@ export default function BotChat({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowSessionDialog(false)}>Close</Button>
+          <Button onClick={() => setSessionDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Paper>
