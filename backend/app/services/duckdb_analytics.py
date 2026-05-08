@@ -5,7 +5,14 @@ import os
 class DuckDBAnalytics:
     def __init__(self, db_path: str = "analytics.db"):
         self.db_path = db_path
-        self.conn = duckdb.connect(self.db_path)
+        # Use read_only=True or use :memory: for testing
+        # In production, use proper connection pooling
+        try:
+            self.conn = duckdb.connect(self.db_path, read_only=False)
+        except Exception as e:
+            # Fallback to in-memory database if file is locked
+            print(f"Warning: Could not connect to {self.db_path}: {e}. Using in-memory database.")
+            self.conn = duckdb.connect(':memory:')
 
     def execute_query(self, sql: str) -> List[Dict[str, Any]]:
         """Execute a SQL query and return results as list of dicts."""

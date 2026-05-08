@@ -209,6 +209,73 @@ body {
   opacity: 0.95;
 }
 
+.upload-panel {
+  border-radius: 24px;
+  padding: 24px;
+  background: linear-gradient(180deg, #ffffff, #f5f7ff);
+  border: 1px solid rgba(78, 115, 223, 0.12);
+}
+
+.upload-panel .MuiTypography-root {
+  line-height: 1.6;
+}
+
+.upload-status {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.upload-error {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.document-list {
+  margin-top: 16px;
+}
+
+.document-list .MuiListItem-root {
+  border-radius: 16px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(46, 59, 77, 0.05);
+}
+
+.chat-bubble {
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 12px 24px rgba(46, 59, 77, 0.06);
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.chat-bubble.user {
+  background: linear-gradient(135deg, rgba(78, 115, 223, 0.16), rgba(255, 255, 255, 0.95));
+}
+
+.chat-bubble.assistant {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.chat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.chat-input-area {
+  border-radius: 22px;
+  border: 1px solid rgba(46, 59, 77, 0.12);
+  padding: 20px;
+  background: #ffffff;
+}
+
+.chat-input-area textarea {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 .alert-card {
   padding: 18px;
   border-radius: 18px;
