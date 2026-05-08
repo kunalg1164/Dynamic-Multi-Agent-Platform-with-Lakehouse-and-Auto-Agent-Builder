@@ -30,6 +30,20 @@ export type ChatSessionDetail = {
   messages: ChatMessage[]
 }
 
+export type ChatSource = {
+  filename: string
+  snippet: string
+  similarity?: number
+}
+
+export type ChatResponse = {
+  agent_id: number
+  session_id: number
+  assistant_response: string
+  messages: ChatMessage[]
+  sources?: ChatSource[]
+}
+
 export type SampleBot = {
   name: string
   description: string

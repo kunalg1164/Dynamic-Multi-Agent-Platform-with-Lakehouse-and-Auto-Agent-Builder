@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { ThemeProvider, createTheme, CssBaseline, Container, Box, Stack, Typography, Tabs, Tab, Chip, Alert, Paper } from '@mui/material'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { ThemeProvider, createTheme, CssBaseline, Container, Box, Stack, Typography, Tabs, Tab, Chip, Alert, Paper, IconButton, Tooltip } from '@mui/material'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import { API_BASE } from './api'
 import AgentBuilder from './components/AgentBuilder'
 import BotChat from './components/BotChat'
 import AgentLibrary from './components/AgentLibrary'
-import type { Agent, ChatMessage, ChatSession, ChatSessionDetail, SampleBot } from './types'
+import type { Agent, ChatMessage, ChatResponse, ChatSession, ChatSessionDetail, ChatSource, SampleBot } from './types'
 import './App.css'
 
 const theme = createTheme({
@@ -62,13 +63,12 @@ function App() {
   const [createdAgent, setCreatedAgent] = useState<Agent | null>(null)
   const [error, setError] = useState('')
   const [activeScreen, setActiveScreen] = useState(0)
+  const [isRefreshingAgents, setIsRefreshingAgents] = useState(false)
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false)
+  const [latestSources, setLatestSources] = useState<ChatSource[]>([])
 
   useEffect(() => {
-    fetch(`${API_BASE}/health`)
-      .then((response) => response.json())
-      .then(() => setStatus('backend available'))
-      .catch(() => setStatus('backend unavailable'))
-
+    checkBackendStatus()
     fetchAgents()
   }, [])
 
@@ -78,8 +78,19 @@ function App() {
     }
   }, [selectedAgentId])
 
+  const checkBackendStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/health`)
+      if (!response.ok) throw new Error('health endpoint failed')
+      setStatus('backend available')
+    } catch {
+      setStatus('backend unavailable')
+    }
+  }
+
   const fetchAgents = async () => {
     try {
+      setIsRefreshingAgents(true)
       const response = await fetch(`${API_BASE}/api/agents`)
       const data = await response.json()
       setAgents(data)
@@ -88,6 +99,8 @@ function App() {
       }
     } catch {
       setError('Unable to fetch agents.')
+    } finally {
+      setIsRefreshingAgents(false)
     }
   }
 
@@ -104,6 +117,7 @@ function App() {
   }) => {
     setError('')
     setCreatedAgent(null)
+    setIsCreatingAgent(true)
 
     try {
       const response = await fetch(`${API_BASE}/api/agents/builder`, {
@@ -128,6 +142,8 @@ function App() {
       setActiveScreen(1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Agent creation failed. Check backend or API settings.')
+    } finally {
+      setIsCreatingAgent(false)
     }
   }
 
@@ -160,15 +176,16 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: chatMessage,
-          session_title: currentSessionId ? undefined : `Chat with ${agents.find(a => a.id === selectedAgentId)?.name || 'Agent'}`
+          session_title: currentSessionId ? undefined : `Chat with ${agents.find(a => a.id === selectedAgentId)?.name || 'Agent'}`,
         }),
       })
       if (!response.ok) {
         throw new Error('Chat API returned an error')
       }
-      const data = await response.json()
+      const data: ChatResponse = await response.json()
       setChatHistory(data.messages || [])
       setCurrentSessionId(data.session_id)
+      setLatestSources(data.sources || [])
       setChatMessage('')
       
       // Refresh sessions list
@@ -211,6 +228,7 @@ function App() {
     setChatHistory([])
     setCurrentSessionId(null)
     setChatMessage('')
+    setLatestSources([])
   }
 
   const handleAgentSelect = (agentId: number) => {
@@ -218,6 +236,7 @@ function App() {
     setChatHistory([])
     setCurrentSessionId(null)
     setChatMessage('')
+    setLatestSources([])
   }
 
   const selectSampleBot = (bot: SampleBot) => {
@@ -227,6 +246,11 @@ function App() {
     setTags(bot.tags.join(', '))
     setActiveScreen(0)
   }
+
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.id === selectedAgentId) || null,
+    [agents, selectedAgentId]
+  )
 
   const quickCreateSample = async (bot: SampleBot) => {
     setName(bot.name)
@@ -253,15 +277,38 @@ function App() {
             <Typography variant="body1" color="text.secondary" maxWidth={680}>
               Create intelligent finance and travel assistants, then chat with them using a dedicated studio interface.
             </Typography>
+            <Stack direction="row" spacing={1} mt={2} flexWrap="wrap">
+              <Chip size="small" label={`${agents.length} agents`} />
+              <Chip
+                size="small"
+                color={selectedAgent ? 'primary' : 'default'}
+                label={selectedAgent ? `Selected: ${selectedAgent.name}` : 'No agent selected'}
+              />
+            </Stack>
           </Box>
-          <Chip label={`Backend ${status}`} color={status === 'backend available' ? 'primary' : 'default'} />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label={`Backend ${status}`} color={status === 'backend available' ? 'primary' : 'default'} />
+            <Tooltip title="Refresh backend and agent list">
+              <span>
+                <IconButton
+                  onClick={() => {
+                    checkBackendStatus()
+                    fetchAgents()
+                  }}
+                  disabled={isRefreshingAgents}
+                >
+                  <RefreshIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
         </Box>
 
         <Paper elevation={3} sx={{ borderRadius: 4, mb: 4 }}>
           <Tabs value={activeScreen} onChange={(_, value) => setActiveScreen(value)} indicatorColor="primary" textColor="primary" variant="fullWidth">
             <Tab label="Bot Builder" />
-            <Tab label="Bot Chat" />
-            <Tab label="Agent Library" />
+            <Tab label={`Bot Chat${selectedAgent ? '' : ' (select agent)'}`} />
+            <Tab label={`Agent Library (${agents.length})`} />
           </Tabs>
         </Paper>
 
@@ -287,6 +334,7 @@ function App() {
             onCreate={handleBuildAgent}
             onLoadSample={selectSampleBot}
             onQuickBuildSample={quickCreateSample}
+            isCreating={isCreatingAgent}
           />
         )}
 
@@ -304,6 +352,7 @@ function App() {
             onSendMessage={handleSendMessage}
             onLoadSession={loadChatSession}
             onStartNewChat={startNewChat}
+            latestSources={latestSources}
           />
         )}
 

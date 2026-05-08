@@ -26,6 +26,7 @@ type AgentBuilderProps = {
   onCreate: (event: FormEvent<HTMLFormElement>) => void
   onLoadSample: (bot: SampleBot) => void
   onQuickBuildSample: (bot: SampleBot) => void
+  isCreating?: boolean
 }
 
 export default function AgentBuilder({
@@ -42,7 +43,64 @@ export default function AgentBuilder({
   onCreate,
   onLoadSample,
   onQuickBuildSample,
+  isCreating = false,
 }: AgentBuilderProps) {
+  const parsePromptContent = (text: string) => {
+    const nodes: any[] = []
+    let lastIndex = 0
+    const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g
+    let match: RegExpExecArray | null
+
+    while ((match = regex.exec(text)) !== null) {
+      const [fullMatch, strongText, italicText] = match
+      const start = match.index
+      if (start > lastIndex) {
+        nodes.push(text.slice(lastIndex, start))
+      }
+      if (strongText) {
+        nodes.push(
+          <Typography component="span" sx={{ fontWeight: 700 }} key={start}>
+            {strongText}
+          </Typography>
+        )
+      } else if (italicText) {
+        nodes.push(
+          <Typography component="span" sx={{ fontStyle: 'italic' }} key={start}>
+            {italicText}
+          </Typography>
+        )
+      }
+      lastIndex = start + fullMatch.length
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push(text.slice(lastIndex))
+    }
+    return nodes
+  }
+
+  const renderPromptContent = (content: string) => {
+    return content.split('\n').map((line, index) => {
+      const trimmed = line.trim()
+      if (/^[*-]\s+/.test(trimmed)) {
+        return (
+          <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 0.5 }}>
+            <Typography component="span" sx={{ fontWeight: 700 }}>
+              •
+            </Typography>
+            <Typography component="span">{parsePromptContent(trimmed.replace(/^[*-]\s+/, ''))}</Typography>
+          </Box>
+        )
+      }
+
+      return (
+        <Typography component="div" key={index} sx={{ mb: 0.5 }}>
+          {parsePromptContent(line)}
+        </Typography>
+      )
+    })
+  }
+
   return (
     <Paper elevation={4} sx={{ borderRadius: 4, p: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -61,6 +119,7 @@ export default function AgentBuilder({
                 onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onNameChange(event.target.value)}
                 fullWidth
                 required
+                helperText="Use a clear name users can quickly identify."
               />
               <TextField
                 label="Description"
@@ -70,21 +129,24 @@ export default function AgentBuilder({
                 multiline
                 minRows={4}
                 required
+                helperText="Describe what this agent should do and what outcome you expect."
               />
               <TextField
                 label="Domain"
                 value={domain}
                 onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onDomainChange(event.target.value)}
                 fullWidth
+                helperText="Optional (example: finance, travel, ops)"
               />
               <TextField
                 label="Tags (comma separated)"
                 value={tags}
                 onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onTagsChange(event.target.value)}
                 fullWidth
+                helperText="Tags improve discoverability in the library."
               />
-              <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 3 }}>
-                Create Agent
+              <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 3 }} disabled={isCreating || !name.trim() || !description.trim()}>
+                {isCreating ? 'Creating...' : 'Create Agent'}
               </Button>
             </Stack>
           </Box>
@@ -110,10 +172,10 @@ export default function AgentBuilder({
                       ))}
                     </Stack>
                     <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="outlined" onClick={() => onLoadSample(bot)}>
+                      <Button size="small" variant="outlined" onClick={() => onLoadSample(bot)} disabled={isCreating}>
                         Load
                       </Button>
-                      <Button size="small" variant="contained" onClick={() => onQuickBuildSample(bot)}>
+                      <Button size="small" variant="contained" onClick={() => onQuickBuildSample(bot)} disabled={isCreating}>
                         Build
                       </Button>
                     </Stack>
@@ -128,18 +190,27 @@ export default function AgentBuilder({
                   Created Agent
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Name:</strong> {createdAgent.name}
+                  <Typography component="span" sx={{ fontWeight: 700 }}>
+                    Name:
+                  </Typography>{' '}
+                  {createdAgent.name}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Domain:</strong> {createdAgent.domain || 'general'}
+                  <Typography component="span" sx={{ fontWeight: 700 }}>
+                    Domain:
+                  </Typography>{' '}
+                  {createdAgent.domain || 'general'}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Tools:</strong> {createdAgent.allowed_tools?.join(', ') || 'Auto-selected'}
+                  <Typography component="span" sx={{ fontWeight: 700 }}>
+                    Tools:
+                  </Typography>{' '}
+                  {createdAgent.allowed_tools?.join(', ') || 'Auto-selected'}
                 </Typography>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {createdAgent.prompt_template}
-                </Typography>
+                <Box sx={{ whiteSpace: 'pre-wrap' }}>
+                  {renderPromptContent(createdAgent.prompt_template || '')}
+                </Box>
               </Paper>
             )}
           </Stack>
